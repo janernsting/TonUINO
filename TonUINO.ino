@@ -236,6 +236,9 @@ void loadSettingsFromFlash() {
   Serial.print(mySettings.adminMenuPin[1]);
   Serial.print(mySettings.adminMenuPin[2]);
   Serial.println(mySettings.adminMenuPin[3]);
+
+  Serial.print(F("Stop when card away: "));
+  Serial.println(mySettings.stopWhenCardAway);
 }
 
 class Modifier {
@@ -766,10 +769,8 @@ void setup() {
   mp3.begin();
   // Zwei Sekunden warten bis der DFPlayer Mini initialisiert ist
   delay(2000);
-
   volume = mySettings.initVolume;
   mp3.setVolume(volume);
-
   mp3.setEq(mySettings.eq - 1);
   // Fix für das Problem mit dem Timeout (ist jetzt in Upstream daher nicht mehr nötig!)
   //mySoftwareSerial.setTimeout(10000);
