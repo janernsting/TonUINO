@@ -20,8 +20,6 @@
 // uncomment the below line to enable five button support
 //#define FIVEBUTTONS
 
-// uncomment the below line to enable volume control with a potentiometer
-//#define POTI
 static const uint32_t cardCookie = 322417479;
 
 // DFPlayer Mini
@@ -85,14 +83,6 @@ nfcTagObject myCard;
 folderSettings *myFolder;
 unsigned long sleepAtMillis = 0;
 static uint16_t _lastTrackFinished;
-
-
-
-#ifdef POTI
-const byte POTIPIN      =7;
-uint16_t PotiValue;
-uint16_t oldPotiValue;
-#endif
 
 
 
@@ -272,9 +262,6 @@ class Modifier {
     virtual bool handleVolumeDown() {
       return false;
     }
-    virtual bool handlePotiVolume() {
-      return false;
-    }
     virtual bool handleRFID(nfcTagObject *newCard) {
       return false;
     }
@@ -378,10 +365,6 @@ class Locked: public Modifier {
       Serial.println(F("== Locked::handleVolumeDown() -> LOCKED!"));
       return true;
     }
-    virtual bool handlePotiVolume() {
-      Serial.println(F("== Locked::handlePotiVolume() -> LOCKED!"));
-      return true;
-    }
     virtual bool handleRFID(nfcTagObject *newCard) {
       Serial.println(F("== Locked::handleRFID() -> LOCKED!"));
       return true;
@@ -416,10 +399,6 @@ class ToddlerMode: public Modifier {
     }
     virtual bool handleVolumeDown() {
       Serial.println(F("== ToddlerMode::handleVolumeDown() -> LOCKED!"));
-      return true;
-    }
-    virtual bool handlePotiVolume() {
-      Serial.println(F("== ToddlerMode::handlePotiVolume() -> LOCKED!"));
       return true;
     }
     ToddlerMode(void) {
@@ -755,13 +734,13 @@ void waitForTrackToFinish() {
 void setup() {
 
   Serial.begin(115200); // Es gibt ein paar Debug Ausgaben über die serielle Schnittstelle
-   
+
   // Wert für randomSeed() erzeugen durch das mehrfache Sammeln von rauschenden LSBs eines offenen Analogeingangs
   uint32_t ADC_LSB;
   uint32_t ADCSeed;
-  for(uint8_t i = 0; i < 128; i++) {
+  for (uint8_t i = 0; i < 128; i++) {
     ADC_LSB = analogRead(openAnalogPin) & 0x1;
-    ADCSeed ^= ADC_LSB << (i % 32); 
+    ADCSeed ^= ADC_LSB << (i % 32);
   }
   randomSeed(ADCSeed); // Zufallsgenerator initialisieren
 
@@ -788,20 +767,9 @@ void setup() {
   // Zwei Sekunden warten bis der DFPlayer Mini initialisiert ist
   delay(2000);
 
-  #ifdef POTI
-  PotiValue = analogRead(POTIPIN);
-  PotiValue = map(PotiValue, 0,1024,mySettings.minVolume, mySettings.maxVolume+1);
-  Serial.print(F("Poti Bereich: ")); Serial.print(mySettings.minVolume); Serial.print(" - "); Serial.println(mySettings.maxVolume+1);
-  mp3.setVolume(PotiValue);
-    Serial.println(F("Initiale Lautstärke über Poti:"));
-    Serial.println(PotiValue);
-  #endif
-  
-  #ifndef POTI
   volume = mySettings.initVolume;
   mp3.setVolume(volume);
-  #endif
-  
+
   mp3.setEq(mySettings.eq - 1);
   // Fix für das Problem mit dem Timeout (ist jetzt in Upstream daher nicht mehr nötig!)
   //mySoftwareSerial.setTimeout(10000);
@@ -852,7 +820,6 @@ void readButtons() {
 }
 
 void volumeUpButton() {
-  #ifndef POTI
   if (activeModifier != NULL)
     if (activeModifier->handleVolumeUp() == true)
       return;
@@ -863,14 +830,9 @@ void volumeUpButton() {
     volume++;
   }
   Serial.println(volume);
-  #endif
-  #ifdef POTI
-nextButton();
-  #endif
 }
 
 void volumeDownButton() {
-  #ifndef POTI
   if (activeModifier != NULL)
     if (activeModifier->handleVolumeDown() == true)
       return;
@@ -881,10 +843,6 @@ void volumeDownButton() {
     volume--;
   }
   Serial.println(volume);
-  #endif
-    #ifdef POTI
-previousButton();
-  #endif
 }
 
 void nextButton() {
@@ -904,25 +862,7 @@ void previousButton() {
   previousTrack();
   delay(1000);
 }
-#ifdef POTI
-void potiVolume() {
 
-  PotiValue = analogRead(POTIPIN);
-  //Serial.println("Analog output Poti:");
-  //Serial.println(PotiValue);
-  PotiValue = map(PotiValue, 0,1024,mySettings.minVolume, mySettings.maxVolume+1);
-  if (PotiValue > oldPotiValue || PotiValue < oldPotiValue ) {
-      oldPotiValue=PotiValue;
-      if (activeModifier != NULL)
-        if (activeModifier->handlePotiVolume() == true)
-          return;  
-    Serial.print(F("PotiLautstärke: "));
-    Serial.println(PotiValue);
-    mp3.setVolume(PotiValue);
-    
-  }
-}
-#endif
 void playFolder() {
   Serial.println(F("== playFolder()")) ;
   disablestandbyTimer();
@@ -1038,7 +978,7 @@ byte pollCard() {
           // store info about current card
           memcpy(lastCardUid, mfrc522.uid.uidByte, 4);
           lastCardWasUL = mfrc522.PICC_GetType(mfrc522.uid.sak) == MFRC522::PICC_TYPE_MIFARE_UL;
-        
+
           retries = maxRetries;
           hasCard = true;
           return bSameUID ? PCS_CARD_IS_BACK : PCS_NEW_CARD;
@@ -1055,7 +995,7 @@ byte pollCard() {
     // perform a dummy read command just to see whether the card is in range
     byte buffer[18];
     byte size = sizeof(buffer);
-    
+
     if (mfrc522.MIFARE_Read(lastCardWasUL ? 8 : blockAddr, buffer, &size) != MFRC522::STATUS_OK) {
       if (retries > 0) {
         retries--;
@@ -1254,9 +1194,6 @@ void loop() {
     }
 #endif
     // Ende der Buttons
-    #ifdef POTI
-    potiVolume();
-    #endif
     handleCardReader();
 }
 
