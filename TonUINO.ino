@@ -150,8 +150,7 @@ void shuffleQueue() {
   for (uint8_t x = numTracksInFolder - firstTrack + 1; x < 255; x++)
     queue[x] = 0;
   // Queue mischen
-  for (uint8_t i = 0; i < numTracksInFolder - firstTrack + 1; i++)
-  {
+  for (uint8_t i = 0; i < numTracksInFolder - firstTrack + 1; i++) {
     uint8_t j = random (0, numTracksInFolder - firstTrack + 1);
     uint8_t t = queue[i];
     queue[i] = queue[j];
@@ -576,10 +575,10 @@ static void nextTrack(uint16_t track) {
       mp3.playFolderTrack(myFolder->folder, currentTrack);
       Serial.print(F("Albummodus ist aktiv -> nächster Track: "));
       Serial.print(currentTrack);
-    } else
+    } else {
       //      mp3.sleep();   // Je nach Modul kommt es nicht mehr zurück aus dem Sleep!
       setstandbyTimer();
-    { }
+    }
   }
   if (myFolder->mode == 3 || myFolder->mode == 9) {
     if (currentTrack != numTracksInFolder - firstTrack + 1) {
@@ -638,9 +637,7 @@ static void previousTrack() {
     if (currentTrack != 1) {
       Serial.print(F("Party Modus ist aktiv -> zurück in der Qeueue "));
       currentTrack--;
-    }
-    else
-    {
+    } else {
       Serial.print(F("Anfang der Queue -> springe ans Ende "));
       currentTrack = numTracksInFolder;
     }
@@ -1024,114 +1021,88 @@ void playShortCut(uint8_t shortCut) {
 }
 
 //Um festzustellen ob eine Karte entfernt wurde, muss der MFRC regelmäßig ausgelesen werden
-byte pollCard()
-{
+byte pollCard() {
   const byte maxRetries = 2;
 
-  if (!hasCard)
-  {
-    if (mfrc522.PICC_IsNewCardPresent())
-    {
-      if (mfrc522.PICC_ReadCardSerial())
-      {
+  if (!hasCard) {
+    if (mfrc522.PICC_IsNewCardPresent()) {
+      if (mfrc522.PICC_ReadCardSerial()) {
         Serial.print(F("ReadCardSerial finished"));
-        if (readCard(&myCard))
-        {
-      bool bSameUID = !memcmp(lastCardUid, mfrc522.uid.uidByte, 4);
-      if (bSameUID) {
-        Serial.print(F("Gleiche Karte"));
-      }
-      else {
-        Serial.print(F("Neue Karte"));
-      }
-      // store info about current card
-      memcpy(lastCardUid, mfrc522.uid.uidByte, 4);
-      lastCardWasUL = mfrc522.PICC_GetType(mfrc522.uid.sak) == MFRC522::PICC_TYPE_MIFARE_UL;
-    
-      retries = maxRetries;
-      hasCard = true;
-      return bSameUID ? PCS_CARD_IS_BACK : PCS_NEW_CARD;
+        if (readCard(&myCard)) {
+          bool bSameUID = !memcmp(lastCardUid, mfrc522.uid.uidByte, 4);
+          if (bSameUID) {
+            Serial.print(F("Gleiche Karte"));
+          } else {
+            Serial.print(F("Neue Karte"));
           }
-          else //readCard war nicht erfolgreich
-          {
-            mfrc522.PICC_HaltA();
-            mfrc522.PCD_StopCrypto1();
-            Serial.print(F("Karte konnte nicht gelesen werden"));
-    }
-    }
+          // store info about current card
+          memcpy(lastCardUid, mfrc522.uid.uidByte, 4);
+          lastCardWasUL = mfrc522.PICC_GetType(mfrc522.uid.sak) == MFRC522::PICC_TYPE_MIFARE_UL;
+        
+          retries = maxRetries;
+          hasCard = true;
+          return bSameUID ? PCS_CARD_IS_BACK : PCS_NEW_CARD;
+         } else {
+           //readCard war nicht erfolgreich
+           mfrc522.PICC_HaltA();
+           mfrc522.PCD_StopCrypto1();
+           Serial.print(F("Karte konnte nicht gelesen werden"));
+         }
+      }
     }
     return PCS_NO_CHANGE;
-  }
-  else // hasCard
-  {
+  } else { // hasCard
     // perform a dummy read command just to see whether the card is in range
     byte buffer[18];
     byte size = sizeof(buffer);
     
-    if (mfrc522.MIFARE_Read(lastCardWasUL ? 8 : blockAddr, buffer, &size) != MFRC522::STATUS_OK)
-    {
-      if (retries > 0)
-      {
-          retries--;
+    if (mfrc522.MIFARE_Read(lastCardWasUL ? 8 : blockAddr, buffer, &size) != MFRC522::STATUS_OK) {
+      if (retries > 0) {
+        retries--;
+      } else {
+        Serial.println(F("Karte ist weg!"));
+        mfrc522.PICC_HaltA();
+        mfrc522.PCD_StopCrypto1();
+        hasCard = false;
+        return PCS_CARD_GONE;
       }
-      else
-      {
-          Serial.println(F("Karte ist weg!"));
-          mfrc522.PICC_HaltA();
-          mfrc522.PCD_StopCrypto1();
-          hasCard = false;
-          return PCS_CARD_GONE;
-      }
-    }
-    else
-    {
-        retries = maxRetries;
+    } else {
+      retries = maxRetries;
     }
   }
   return PCS_NO_CHANGE;
-
 }
 
-void handleCardReader()
-{
+void handleCardReader() {
   // poll card only every 100ms
   static uint8_t lastCardPoll = 0;
   uint8_t now = millis();
   
-  if (static_cast<uint8_t>(now - lastCardPoll) > 100)
-  {
+  if (static_cast<uint8_t>(now - lastCardPoll) > 100) {
     lastCardPoll = now;
-    switch (pollCard())
-    {
-    case PCS_NEW_CARD:
-      onNewCard();
-      break;
-    case PCS_CARD_GONE:
-    if (mySettings.stopWhenCardAway) {
-      mp3.pause();
-      setstandbyTimer();
-    }
-      break;
-      
-    case PCS_CARD_IS_BACK:
-    if (mySettings.stopWhenCardAway) 
-    {
-      //nur weiterspielen wenn vorher nicht konfiguriert wurde
-      if (!forgetLastCard) 
-      {
-          mp3.start();
-          disablestandbyTimer();
-      }
-      else 
-      {
-          onNewCard();
-      }
-    }
-
-      break;
+    switch (pollCard()) {
+      case PCS_NEW_CARD:
+        onNewCard();
+        break;
+      case PCS_CARD_GONE:
+        if (mySettings.stopWhenCardAway) {
+          mp3.pause();
+          setstandbyTimer();
+        }
+        break;  
+      case PCS_CARD_IS_BACK:
+        if (mySettings.stopWhenCardAway) {
+          //nur weiterspielen wenn vorher nicht konfiguriert wurde
+          if (!forgetLastCard) {
+            mp3.start();
+            disablestandbyTimer();
+          } else {
+            onNewCard();
+          }
+        }
+        break;
     }    
   }
-
 }
 
 void loop() {
@@ -1286,25 +1257,22 @@ void loop() {
     #ifdef POTI
     potiVolume();
     #endif
-      handleCardReader();
+    handleCardReader();
 }
 
-void onNewCard()
-{
-   forgetLastCard=false;
+void onNewCard() {
+  forgetLastCard=false;
   // make random a little bit more "random"
   randomSeed(millis() + random(1000));
-    if (myCard.cookie == cardCookie && myCard.nfcFolderSettings.folder != 0 && myCard.nfcFolderSettings.mode != 0) {
-      playFolder();
-  }
-
+  if (myCard.cookie == cardCookie && myCard.nfcFolderSettings.folder != 0 && myCard.nfcFolderSettings.mode != 0) {
+    playFolder();
+  } else if (myCard.cookie != cardCookie) {
     // Neue Karte konfigurieren
-    else if (myCard.cookie != cardCookie) {
-      knownCard = false;
-      mp3.playMp3FolderTrack(300);
-      waitForTrackToFinish();
-      setupCard();
-    }
+    knownCard = false;
+    mp3.playMp3FolderTrack(300);
+    waitForTrackToFinish();
+    setupCard();
+  }
 }
 
 void adminMenu(bool fromCard = false) {
@@ -1709,8 +1677,7 @@ void setupCard() {
   mp3.pause();
   Serial.println(F("=== setupCard()"));
   nfcTagObject newCard;
-  if (setupFolder(&newCard.nfcFolderSettings) == true)
-  {
+  if (setupFolder(&newCard.nfcFolderSettings) == true) {
     // Karte ist konfiguriert -> speichern
     mp3.pause();
     do {
@@ -1736,14 +1703,11 @@ bool readCard(nfcTagObject * nfcTag) {
   // Authenticate using key A
   if ((piccType == MFRC522::PICC_TYPE_MIFARE_MINI ) ||
       (piccType == MFRC522::PICC_TYPE_MIFARE_1K ) ||
-      (piccType == MFRC522::PICC_TYPE_MIFARE_4K ) )
-  {
+      (piccType == MFRC522::PICC_TYPE_MIFARE_4K ) ) {
     Serial.println(F("Authenticating Classic using key A..."));
     status = mfrc522.PCD_Authenticate(
                MFRC522::PICC_CMD_MF_AUTH_KEY_A, trailerBlock, &key, &(mfrc522.uid));
-  }
-  else if (piccType == MFRC522::PICC_TYPE_MIFARE_UL )
-  {
+  } else if (piccType == MFRC522::PICC_TYPE_MIFARE_UL ) {
     byte pACK[] = {0, 0}; //16 bit PassWord ACK returned by the tempCard
 
     // Authenticate using key A
@@ -1765,8 +1729,7 @@ bool readCard(nfcTagObject * nfcTag) {
   // Read data from the block
   if ((piccType == MFRC522::PICC_TYPE_MIFARE_MINI ) ||
       (piccType == MFRC522::PICC_TYPE_MIFARE_1K ) ||
-      (piccType == MFRC522::PICC_TYPE_MIFARE_4K ) )
-  {
+      (piccType == MFRC522::PICC_TYPE_MIFARE_4K ) ) {
     Serial.print(F("Reading data from block "));
     Serial.print(blockAddr);
     Serial.println(F(" ..."));
@@ -1776,9 +1739,7 @@ bool readCard(nfcTagObject * nfcTag) {
       Serial.println(mfrc522.GetStatusCodeName(status));
       return false;
     }
-  }
-  else if (piccType == MFRC522::PICC_TYPE_MIFARE_UL )
-  {
+  } else if (piccType == MFRC522::PICC_TYPE_MIFARE_UL ) {
     byte buffer2[18];
     byte size2 = sizeof(buffer2);
 
@@ -1927,14 +1888,11 @@ void writeCard(nfcTagObject nfcTag) {
   //authentificate with the card and set card specific parameters
   if ((mifareType == MFRC522::PICC_TYPE_MIFARE_MINI ) ||
       (mifareType == MFRC522::PICC_TYPE_MIFARE_1K ) ||
-      (mifareType == MFRC522::PICC_TYPE_MIFARE_4K ) )
-  {
+      (mifareType == MFRC522::PICC_TYPE_MIFARE_4K ) ) {
     Serial.println(F("Authenticating again using key A..."));
     status = mfrc522.PCD_Authenticate(
                MFRC522::PICC_CMD_MF_AUTH_KEY_A, trailerBlock, &key, &(mfrc522.uid));
-  }
-  else if (mifareType == MFRC522::PICC_TYPE_MIFARE_UL )
-  {
+  } else if (mifareType == MFRC522::PICC_TYPE_MIFARE_UL ) {
     byte pACK[] = {0, 0}; //16 bit PassWord ACK returned by the NFCtag
 
     // Authenticate using key A
@@ -1958,12 +1916,9 @@ void writeCard(nfcTagObject nfcTag) {
 
   if ((mifareType == MFRC522::PICC_TYPE_MIFARE_MINI ) ||
       (mifareType == MFRC522::PICC_TYPE_MIFARE_1K ) ||
-      (mifareType == MFRC522::PICC_TYPE_MIFARE_4K ) )
-  {
+      (mifareType == MFRC522::PICC_TYPE_MIFARE_4K ) ) {
     status = (MFRC522::StatusCode)mfrc522.MIFARE_Write(blockAddr, buffer, 16);
-  }
-  else if (mifareType == MFRC522::PICC_TYPE_MIFARE_UL )
-  {
+  } else if (mifareType == MFRC522::PICC_TYPE_MIFARE_UL ) {
     byte buffer2[16];
     byte size2 = sizeof(buffer2);
 
@@ -1988,9 +1943,9 @@ void writeCard(nfcTagObject nfcTag) {
     Serial.print(F("MIFARE_Write() failed: "));
     Serial.println(mfrc522.GetStatusCodeName(status));
     mp3.playMp3FolderTrack(401);
-  }
-  else
+  } else {
     mp3.playMp3FolderTrack(400);
+  }
   Serial.println();
   delay(2000);
 }
